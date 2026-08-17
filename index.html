@@ -475,12 +475,13 @@
     <input type="text" id="ghRepo" placeholder="repo-name" />
   </div>
   <div class="meta-field">
-    <label>Access Token (session only)</label>
-    <input type="password" id="ghToken" placeholder="github_pat_..." autocomplete="off" />
+    <label>Access Token (GH_Page_TOKEN)</label>
+    <input type="password" id="ghToken" placeholder="GH_Page_TOKEN" autocomplete="off" />
   </div>
   <div class="hint">
-    Fine-grained PAT with <code>Contents: Read&nbsp;and&nbsp;write</code>. Token is used only to fire the
-    <code>repository_dispatch</code> event — it is never stored or committed.
+    Fine-grained PAT (<code>Contents: Read&nbsp;and&nbsp;write</code>) that fires the
+    <code>repository_dispatch</code> event. Paste it once — it is remembered in <b>this browser only</b>
+    (localStorage), never committed. The repo secret is server-side and can't be read here.
   </div>
   <div class="config-status">
     <span class="status-dot" id="cfgDot"></span>
@@ -494,7 +495,7 @@
   <div class="env-panel env-rel" id="panel-rel">
     <div class="env-header">
       <span class="env-badge">REL</span>
-      <span class="env-title">Release / Staging Environment</span>
+      <span class="env-title">Release Environment</span>
       <span class="env-count" id="count-rel">0 selected</span>
     </div>
     <!-- tiers injected by JS -->
@@ -703,6 +704,21 @@
       if (parts.length >= 1) document.getElementById('ghRepo').value = parts[0];
       else document.getElementById('ghRepo').value = owner + '.github.io';
     }
+  })();
+
+  // ── REMEMBER TOKEN IN THIS BROWSER (localStorage) ──────
+  (function restoreToken() {
+    const field = document.getElementById('ghToken');
+    try {
+      const saved = localStorage.getItem('manifest-token');
+      if (saved) field.value = saved;
+    } catch (e) {}
+    field.addEventListener('input', () => {
+      try {
+        if (field.value.trim()) localStorage.setItem('manifest-token', field.value.trim());
+        else localStorage.removeItem('manifest-token');
+      } catch (e) {}
+    });
   })();
 
   // ── SUBMIT → repository_dispatch → GitHub Actions PR ───

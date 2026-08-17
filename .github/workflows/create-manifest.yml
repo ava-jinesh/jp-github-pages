@@ -27,9 +27,26 @@ jobs:
           # Build a filesystem-safe slug from release + date.
           SLUG=$(printf '%s-%s' "$RELEASE" "$DATE" | tr -c '[:alnum:]._-' '-' | sed 's/-\+/-/g; s/^-//; s/-$//')
           [ -z "$SLUG" ] && SLUG="manifest-$(date +%s)"
-          echo "$MANIFEST" > "manifests/manifest-${SLUG}.json"
+
+          # Write ONE file per environment that has at least one selected repo,
+          # so REL and PROD produce separate manifest files.
+          WROTE=""
+          for ENV in rel prod; do
+            COUNT=$(echo "$MANIFEST" | jq "[.environments.\"$ENV\" // {} | .[] | .[]] | length")
+            if [ "$COUNT" -gt 0 ]; then
+              OUT="manifests/manifest-${ENV}-${SLUG}.json"
+              echo "$MANIFEST" | jq --arg env "$ENV" \
+                '{release, date, generatedAt, environment: $env, tiers: .environments[$env]}' > "$OUT"
+              echo "Wrote $OUT ($COUNT repos)"
+              WROTE="$WROTE $ENV"
+            fi
+          done
+
+          if [ -z "$WROTE" ]; then
+            echo "No repositories selected in any environment — nothing to write." >&2
+            exit 1
+          fi
           echo "SLUG=$SLUG" >> "$GITHUB_ENV"
-          echo "Wrote manifests/manifest-${SLUG}.json"
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v6
@@ -48,7 +65,7 @@ jobs:
 
             - **Release:** `${{ github.event.client_payload.release }}`
             - **Date:** `${{ github.event.client_payload.date }}`
-            - **File:** `manifests/manifest-${{ env.SLUG }}.json`
+            - **Files:** one per selected environment, e.g. `manifests/manifest-rel-${{ env.SLUG }}.json` and/or `manifests/manifest-prod-${{ env.SLUG }}.json`
 
             Review the selected repositories per environment/tier and merge to record this release.
           labels: release-manifest
