@@ -403,6 +403,31 @@
       display: inline-block;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── THEME TOGGLE ───────────────────────────────────── */
+    .theme-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--tag-bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 20px;
+      padding: 7px 14px;
+      font-size: .82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .18s;
+    }
+    .theme-toggle:hover { border-color: var(--accent-rel); }
+    .theme-toggle .icon { font-size: 1rem; line-height: 1; }
+    /* show the right icon/label per theme */
+    .theme-toggle .icon-night, .theme-toggle .label-night { display: inline; }
+    .theme-toggle .icon-day,   .theme-toggle .label-day   { display: none; }
+    [data-theme="light"] .theme-toggle .icon-night,
+    [data-theme="light"] .theme-toggle .label-night { display: none; }
+    [data-theme="light"] .theme-toggle .icon-day,
+    [data-theme="light"] .theme-toggle .label-day   { display: inline; }
   </style>
 </head>
 <body>
@@ -425,6 +450,10 @@
       <label>Release Date</label>
       <input type="date" id="releaseDate" />
     </div>
+    <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle day / night">
+      <span class="icon icon-night">🌙</span><span class="icon icon-day">☀️</span>
+      <span class="label-night">Night</span><span class="label-day">Day</span>
+    </button>
   </div>
 </header>
 
@@ -501,6 +530,20 @@
   ];
   const ENVS = ['rel', 'prod'];
   const REPO_COUNT = 10;
+
+  // ── THEME (day / night) ────────────────────────────────
+  function applyTheme(theme) {
+    if (theme === 'light') document.documentElement.setAttribute('data-theme', 'light');
+    else document.documentElement.removeAttribute('data-theme');
+  }
+  function toggleTheme() {
+    const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+    const next = isLight ? 'night' : 'light';
+    applyTheme(next);
+    try { localStorage.setItem('manifest-theme', next); } catch (e) {}
+  }
+  // restore saved preference (default: night)
+  try { applyTheme(localStorage.getItem('manifest-theme') || 'night'); } catch (e) {}
 
   // Set default date
   document.getElementById('releaseDate').value = new Date().toISOString().split('T')[0];
