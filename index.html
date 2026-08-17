@@ -429,6 +429,13 @@
     [data-theme="light"] .theme-toggle .icon-day,
     [data-theme="light"] .theme-toggle .label-day   { display: inline; }
   </style>
+  <script>
+    // Apply saved theme before first paint to avoid a flash.
+    try {
+      if (localStorage.getItem('manifest-theme') === 'light')
+        document.documentElement.setAttribute('data-theme', 'light');
+    } catch (e) {}
+  </script>
 </head>
 <body>
 
