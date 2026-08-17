@@ -55,10 +55,19 @@ Config bar: **GitHub Owner**, **Repository**, and a **session-only Access Token*
 - **Settings → Pages → Source:** `Deploy from a branch`, branch `main`, folder `/` (root).
 - Site is served at `https://<owner>.github.io/<repo>/`.
 
-### 2. Allow Actions to open PRs
+### 2. Allow Actions to open PRs — pick ONE
+
+**Option A — repo setting (simplest):**
 - **Settings → Actions → General → Workflow permissions:**
   - Select **Read and write permissions**.
-  - Tick **Allow GitHub Actions to create and approve pull requests**.
+  - Tick **Allow GitHub Actions to create and approve pull requests** → **Save**.
+
+> If that checkbox is greyed out, an **organization policy** has locked it (common in enterprise orgs). Use Option B instead.
+
+**Option B — PAT secret (works even when the org locks Option A):**
+- Create a **fine-grained PAT** with `Contents: Read and write` **and** `Pull requests: Read and write` on this repo.
+- Add it as a repository secret named **`MANIFEST_PAT`**: **Settings → Secrets and variables → Actions → New repository secret**.
+- The workflow automatically uses it (`token: ${{ secrets.MANIFEST_PAT || github.token }}`). The PR is opened as your user, which is not subject to the Actions restriction.
 
 ### 3. Create an access token (per user)
 Create a **fine-grained Personal Access Token** scoped to this repository:
@@ -150,7 +159,8 @@ const repos = ['payments-api', 'auth-service', 'order-processor', /* ... */];
 |--------|-------------|
 | `Dispatch failed: HTTP 404` | Wrong owner/repo, or token lacks access to the repo. |
 | `Dispatch failed: HTTP 401/403` | Token missing/expired, or lacks `Contents: Read and write`. |
-| Dispatch succeeds but no PR | Enable **Allow GitHub Actions to create and approve pull requests** (setup step 2). |
+| Dispatch succeeds but no PR | Pipeline ran but failed. |
+| `GitHub Actions is not permitted to create or approve pull requests` | Do **setup step 2 Option A** (tick the checkbox), or **Option B** (add the `MANIFEST_PAT` secret) if the checkbox is locked by org policy. |
 | README shows as raw/binary on GitHub | File must be **UTF-8**, not UTF-16. This repo's files are UTF-8. |
 
 ---

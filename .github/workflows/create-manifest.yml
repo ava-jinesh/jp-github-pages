@@ -34,6 +34,10 @@ jobs:
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v6
         with:
+          # Uses a user PAT if the MANIFEST_PAT secret is set (bypasses the
+          # "Allow GitHub Actions to create PRs" org restriction); otherwise
+          # falls back to the default GITHUB_TOKEN (needs that setting enabled).
+          token: ${{ secrets.MANIFEST_PAT || github.token }}
           branch: manifest/${{ env.SLUG }}
           base: ${{ github.event.repository.default_branch }}
           title: "Release Manifest: ${{ github.event.client_payload.release }} (${{ github.event.client_payload.date }})"
