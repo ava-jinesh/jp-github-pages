@@ -8,21 +8,41 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg: #0f1117;
-      --surface: #1a1d27;
-      --card: #21263a;
-      --border: #2e344a;
+      /* Night mode (default) — softened, less dark than before */
+      --bg: #1b1f2b;
+      --surface: #242a39;
+      --card: #2c3348;
+      --border: #3a4258;
       --accent-rel: #3b82f6;
       --accent-prod: #10b981;
-      --accent-rel-dim: rgba(59,130,246,.12);
-      --accent-prod-dim: rgba(16,185,129,.12);
-      --text: #e2e8f0;
-      --text-muted: #8892a4;
-      --tag-bg: #2a2f45;
+      --accent-rel-dim: rgba(59,130,246,.14);
+      --accent-prod-dim: rgba(16,185,129,.14);
+      --text: #e8edf6;
+      --text-muted: #9aa4b8;
+      --tag-bg: #343c56;
       --danger: #ef4444;
+      --shadow: rgba(0,0,0,.5);
       --radius: 10px;
       --tier-colors: #8b5cf6, #f59e0b, #06b6d4, #ec4899;
     }
+
+    /* Day mode — same accent colors, light surfaces */
+    [data-theme="light"] {
+      --bg: #f4f6fb;
+      --surface: #ffffff;
+      --card: #ffffff;
+      --border: #dbe1ec;
+      --accent-rel-dim: rgba(59,130,246,.10);
+      --accent-prod-dim: rgba(16,185,129,.10);
+      --text: #1e2532;
+      --text-muted: #5a6478;
+      --tag-bg: #eef1f7;
+      --shadow: rgba(30,41,59,.18);
+    }
+
+    html { transition: background .25s ease; }
+    body, header, .config-bar, .footer-bar, .tier-card, .env-panel, #toast,
+    .btn, input { transition: background-color .25s ease, color .25s ease, border-color .25s ease; }
 
     body {
       font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
@@ -323,13 +343,13 @@
       top: 24px;
       left: 50%;
       transform: translateX(-50%) translateY(-80px);
-      background: #1e293b;
+      background: var(--surface);
       color: var(--text);
       padding: 12px 22px;
       border-radius: 8px;
       font-size: .85rem;
       border: 1px solid var(--border);
-      box-shadow: 0 8px 24px rgba(0,0,0,.5);
+      box-shadow: 0 8px 24px var(--shadow);
       transition: transform .3s cubic-bezier(.34,1.56,.64,1);
       z-index: 999;
       white-space: nowrap;
