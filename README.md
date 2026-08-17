@@ -33,7 +33,7 @@ Two environments side by side:
 
 | Left panel | Right panel |
 |-----------|------------|
-| **REL** (Release / Staging) | **PROD** (Production) |
+| **REL** (Release Environment) | **PROD** (Production) |
 
 Each environment has four tiers, each with 10 repositories (`Repo1 … Repo10`):
 
@@ -44,8 +44,10 @@ Each environment has four tiers, each with 10 repositories (`Repo1 … Repo10`):
 | Data | Cyan |
 | MicroFrontends | Pink |
 
-Header fields: **Release Name** and **Release Date** (defaults to today).
-Config bar: **GitHub Owner**, **Repository**, and a **session-only Access Token**. Owner/repo are auto-detected from the Pages URL and can be overridden.
+Header fields: **Release Name** and **Release Date** (defaults to today), plus a **Day / Night theme toggle**.
+Config bar: **GitHub Owner**, **Repository**, and an **Access Token** (`GH_Page_TOKEN`). Owner/repo are auto-detected from the Pages URL; the token is remembered in **this browser only** (localStorage) after you paste it once — it is never committed, and the browser cannot read the server-side repo secret.
+
+**Each selected environment produces its own manifest file** — selecting repos in both REL and PROD yields two separate files in the same PR.
 
 ---
 
@@ -94,26 +96,24 @@ The token is pasted into the page's **Access Token** field. It is held in browse
 
 ## Manifest JSON format
 
-Committed to `manifests/manifest-<release>-<date>.json`:
+**One file per selected environment.** Selecting repos in both environments commits both files:
+
+- `manifests/manifest-rel-<release>-<date>.json`
+- `manifests/manifest-prod-<release>-<date>.json`
+
+An environment with no repos selected produces no file. Each file looks like:
 
 ```json
 {
   "release": "v1.0.0",
   "date": "2026-08-17",
   "generatedAt": "2026-08-17T10:30:00.000Z",
-  "environments": {
-    "rel": {
-      "application":    ["Repo1", "Repo3"],
-      "platform":       ["Repo2"],
-      "data":           [],
-      "microfrontends": ["Repo5", "Repo8"]
-    },
-    "prod": {
-      "application":    ["Repo1"],
-      "platform":       [],
-      "data":           ["Repo4"],
-      "microfrontends": []
-    }
+  "environment": "rel",
+  "tiers": {
+    "application":    ["Repo1", "Repo3"],
+    "platform":       ["Repo2"],
+    "data":           [],
+    "microfrontends": ["Repo5", "Repo8"]
   }
 }
 ```
