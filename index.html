@@ -335,6 +335,54 @@
       white-space: nowrap;
     }
     #toast.show { transform: translateX(-50%) translateY(0); }
+
+    /* ── CONFIG BAR ─────────────────────────────────────── */
+    .config-bar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 32px;
+      display: flex;
+      align-items: flex-end;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .config-bar .meta-field input { width: 180px; }
+    .config-bar .hint {
+      font-size: .72rem;
+      color: var(--text-muted);
+      max-width: 340px;
+      line-height: 1.4;
+    }
+    .config-bar .hint code {
+      background: var(--tag-bg);
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: .95em;
+    }
+    .config-status {
+      margin-left: auto;
+      font-size: .78rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text-muted);
+    }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-muted); }
+    .status-dot.ok  { background: var(--accent-prod); }
+    .status-dot.bad { background: var(--danger); }
+
+    .btn-primary:disabled { opacity: .5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    /* spinner */
+    .spinner {
+      width: 14px; height: 14px;
+      border: 2px solid rgba(255,255,255,.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      display: inline-block;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
@@ -359,6 +407,30 @@
     </div>
   </div>
 </header>
+
+<!-- PR CONFIG BAR -->
+<div class="config-bar">
+  <div class="meta-field">
+    <label>GitHub Owner</label>
+    <input type="text" id="ghOwner" placeholder="org-or-username" />
+  </div>
+  <div class="meta-field">
+    <label>Repository</label>
+    <input type="text" id="ghRepo" placeholder="repo-name" />
+  </div>
+  <div class="meta-field">
+    <label>Access Token (session only)</label>
+    <input type="password" id="ghToken" placeholder="github_pat_..." autocomplete="off" />
+  </div>
+  <div class="hint">
+    Fine-grained PAT with <code>Contents: Read&nbsp;and&nbsp;write</code>. Token is used only to fire the
+    <code>repository_dispatch</code> event — it is never stored or committed.
+  </div>
+  <div class="config-status">
+    <span class="status-dot" id="cfgDot"></span>
+    <span id="cfgStatus">Owner/repo auto-detected from URL</span>
+  </div>
+</div>
 
 <!-- MAIN GRID -->
 <main>
@@ -391,8 +463,9 @@
   </div>
   <div class="footer-actions">
     <button class="btn btn-secondary" onclick="clearAll()">Clear All</button>
-    <button class="btn btn-primary" onclick="downloadManifest()">
-      ⬇ Download Manifest JSON
+    <button class="btn btn-secondary" onclick="downloadManifest()">⬇ Download JSON</button>
+    <button class="btn btn-primary" id="submitBtn" onclick="submitManifest()">
+      🚀 Submit &amp; Create PR
     </button>
   </div>
 </div>
@@ -546,6 +619,82 @@
     a.click();
     URL.revokeObjectURL(url);
     showToast(`✓ Downloaded ${filename}`);
+  }
+
+  // ── AUTO-DETECT OWNER/REPO FROM GITHUB PAGES URL ───────
+  (function detectRepo() {
+    // https://<owner>.github.io/<repo>/  →  owner + repo
+    const host = location.hostname;                 // owner.github.io
+    const parts = location.pathname.split('/').filter(Boolean);
+    if (host.endsWith('.github.io')) {
+      const owner = host.replace('.github.io', '');
+      document.getElementById('ghOwner').value = owner;
+      // user/org page (owner.github.io) has no repo segment
+      if (parts.length >= 1) document.getElementById('ghRepo').value = parts[0];
+      else document.getElementById('ghRepo').value = owner + '.github.io';
+    }
+  })();
+
+  // ── SUBMIT → repository_dispatch → GitHub Actions PR ───
+  async function submitManifest() {
+    const owner = document.getElementById('ghOwner').value.trim();
+    const repo  = document.getElementById('ghRepo').value.trim();
+    const token = document.getElementById('ghToken').value.trim();
+
+    const manifest = buildManifest();
+    const total = ENVS.reduce((sum, env) =>
+      sum + TIERS.reduce((s, t) => s + manifest.environments[env][t.id].length, 0), 0);
+
+    // validation
+    if (total === 0)  return setStatus('bad', 'Select at least one repository first.');
+    if (!owner || !repo) return setStatus('bad', 'Enter the GitHub owner and repository.');
+    if (!token)       return setStatus('bad', 'Enter an access token to open a PR.');
+
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Submitting…';
+    setStatus('', 'Dispatching to GitHub Actions…');
+
+    try {
+      const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/dispatches`, {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/vnd.github+json',
+          'Authorization': `Bearer ${token}`,
+          'X-GitHub-Api-Version': '2022-11-28',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          event_type: 'create-manifest',
+          client_payload: {
+            release: manifest.release,
+            date: manifest.date,
+            manifest: manifest
+          }
+        })
+      });
+
+      if (res.status === 204) {
+        setStatus('ok', '✓ Dispatched. The workflow is opening a PR now.');
+        showToast('🚀 Manifest submitted — check the repo\'s Pull Requests tab.');
+      } else {
+        let detail = `HTTP ${res.status}`;
+        try { const j = await res.json(); if (j.message) detail += ` — ${j.message}`; } catch (e) {}
+        setStatus('bad', `Dispatch failed: ${detail}`);
+        showToast(`⚠ Failed: ${detail}`);
+      }
+    } catch (err) {
+      setStatus('bad', `Network error: ${err.message}`);
+      showToast(`⚠ Network error: ${err.message}`);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '🚀 Submit &amp; Create PR';
+    }
+  }
+
+  function setStatus(kind, msg) {
+    document.getElementById('cfgDot').className = 'status-dot' + (kind ? ' ' + kind : '');
+    document.getElementById('cfgStatus').textContent = msg;
   }
 
   // ── TOAST ──────────────────────────────────────────────
