@@ -1,0 +1,22 @@
+{
+  "date": "2026-08-17",
+  "environments": {
+    "prod": {
+      "application": [],
+      "data": [],
+      "microfrontends": [],
+      "platform": []
+    },
+    "rel": {
+      "application": [
+        "Repo1",
+        "Repo2"
+      ],
+      "data": [],
+      "microfrontends": [],
+      "platform": []
+    }
+  },
+  "generatedAt": "2026-08-17T21:12:26.952Z",
+  "release": "v1.0.0"
+}
