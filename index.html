@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Release Manifest Builder</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --card: #21263a;
+      --border: #2e344a;
+      --accent-rel: #3b82f6;
+      --accent-prod: #10b981;
+      --accent-rel-dim: rgba(59,130,246,.12);
+      --accent-prod-dim: rgba(16,185,129,.12);
+      --text: #e2e8f0;
+      --text-muted: #8892a4;
+      --tag-bg: #2a2f45;
+      --danger: #ef4444;
+      --radius: 10px;
+      --tier-colors: #8b5cf6, #f59e0b, #06b6d4, #ec4899;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── HEADER ─────────────────────────────────────────── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 20px 32px;
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-icon {
+      width: 40px; height: 40px; border-radius: 10px;
+      background: linear-gradient(135deg, var(--accent-rel), var(--accent-prod));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+    }
+    .brand h1 { font-size: 1.25rem; font-weight: 700; letter-spacing: -.02em; }
+    .brand p  { font-size: .8rem; color: var(--text-muted); margin-top: 2px; }
+
+    .header-meta {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .meta-field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .meta-field label {
+      font-size: .7rem;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--text-muted);
+    }
+    .meta-field input {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: .85rem;
+      padding: 6px 10px;
+      width: 160px;
+      outline: none;
+      transition: border-color .2s;
+    }
+    .meta-field input:focus { border-color: var(--accent-rel); }
+
+    /* ── MAIN GRID ──────────────────────────────────────── */
+    main {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+      padding: 28px 28px 120px;
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+
+    @media (max-width: 900px) {
+      main { grid-template-columns: 1fr; }
+    }
+
+    /* ── ENV PANEL ──────────────────────────────────────── */
+    .env-panel {
+      padding: 0 14px;
+    }
+    .env-panel:first-child {
+      border-right: 1px solid var(--border);
+      padding-right: 28px;
+      padding-left: 0;
+    }
+    .env-panel:last-child {
+      padding-left: 28px;
+      padding-right: 0;
+    }
+
+    .env-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 22px;
+      padding-bottom: 14px;
+      border-bottom: 2px solid;
+    }
+    .env-rel  .env-header { border-color: var(--accent-rel); }
+    .env-prod .env-header { border-color: var(--accent-prod); }
+
+    .env-badge {
+      font-size: .75rem;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 20px;
+    }
+    .env-rel  .env-badge { background: var(--accent-rel-dim);  color: var(--accent-rel);  }
+    .env-prod .env-badge { background: var(--accent-prod-dim); color: var(--accent-prod); }
+
+    .env-title { font-size: 1.1rem; font-weight: 600; }
+    .env-count {
+      margin-left: auto;
+      font-size: .8rem;
+      color: var(--text-muted);
+      background: var(--tag-bg);
+      border-radius: 20px;
+      padding: 3px 10px;
+    }
+
+    /* ── TIER CARD ──────────────────────────────────────── */
+    .tier-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 14px;
+      overflow: hidden;
+    }
+
+    .tier-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      cursor: pointer;
+      user-select: none;
+      transition: background .15s;
+    }
+    .tier-header:hover { background: rgba(255,255,255,.03); }
+
+    .tier-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .tier-name {
+      font-size: .9rem;
+      font-weight: 600;
+    }
+    .tier-count-badge {
+      margin-left: auto;
+      font-size: .72rem;
+      color: var(--text-muted);
+      background: var(--tag-bg);
+      border-radius: 20px;
+      padding: 2px 8px;
+      min-width: 24px;
+      text-align: center;
+    }
+
+    .tier-chevron {
+      font-size: .7rem;
+      color: var(--text-muted);
+      transition: transform .2s;
+    }
+    .tier-card.open .tier-chevron { transform: rotate(180deg); }
+
+    .tier-body {
+      display: none;
+      padding: 8px 16px 14px;
+      border-top: 1px solid var(--border);
+    }
+    .tier-card.open .tier-body { display: block; }
+
+    /* bulk actions */
+    .tier-actions {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .btn-tiny {
+      font-size: .72rem;
+      padding: 3px 9px;
+      border-radius: 5px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .btn-tiny:hover { background: var(--tag-bg); color: var(--text); }
+
+    /* repo checklist */
+    .repo-list {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+
+    .repo-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 10px;
+      border-radius: 6px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .repo-item:hover { background: rgba(255,255,255,.04); border-color: var(--border); }
+    .repo-item.checked { border-color: currentColor; }
+    .env-rel  .repo-item.checked { border-color: var(--accent-rel);  background: var(--accent-rel-dim);  }
+    .env-prod .repo-item.checked { border-color: var(--accent-prod); background: var(--accent-prod-dim); }
+
+    .repo-item input[type="checkbox"] {
+      appearance: none;
+      width: 15px; height: 15px;
+      border: 1.5px solid var(--border);
+      border-radius: 4px;
+      cursor: pointer;
+      position: relative;
+      flex-shrink: 0;
+      transition: all .15s;
+    }
+    .env-rel  .repo-item input:checked { background: var(--accent-rel);  border-color: var(--accent-rel);  }
+    .env-prod .repo-item input:checked { background: var(--accent-prod); border-color: var(--accent-prod); }
+    .repo-item input:checked::after {
+      content: '✓';
+      position: absolute;
+      top: -1px; left: 2px;
+      font-size: 11px;
+      color: #fff;
+      font-weight: 700;
+    }
+
+    .repo-name {
+      font-size: .82rem;
+      color: var(--text);
+      font-family: 'Cascadia Code', 'Fira Code', monospace;
+    }
+
+    /* ── FOOTER BAR ─────────────────────────────────────── */
+    .footer-bar {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      padding: 16px 32px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      z-index: 100;
+    }
+
+    .footer-summary {
+      font-size: .82rem;
+      color: var(--text-muted);
+      display: flex;
+      gap: 16px;
+    }
+    .footer-summary span { display: flex; align-items: center; gap: 5px; }
+    .dot-rel  { width:8px;height:8px;border-radius:50%;background:var(--accent-rel);  display:inline-block; }
+    .dot-prod { width:8px;height:8px;border-radius:50%;background:var(--accent-prod); display:inline-block; }
+
+    .footer-actions { margin-left: auto; display: flex; gap: 10px; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 9px 20px;
+      border-radius: 8px;
+      font-size: .87rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all .18s;
+    }
+    .btn-secondary {
+      background: var(--tag-bg);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover { background: var(--border); color: var(--text); }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent-rel), var(--accent-prod));
+      color: #fff;
+    }
+    .btn-primary:hover { opacity: .9; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(59,130,246,.35); }
+    .btn-primary:active { transform: translateY(0); }
+
+    /* ── TOAST ──────────────────────────────────────────── */
+    #toast {
+      position: fixed;
+      top: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-80px);
+      background: #1e293b;
+      color: var(--text);
+      padding: 12px 22px;
+      border-radius: 8px;
+      font-size: .85rem;
+      border: 1px solid var(--border);
+      box-shadow: 0 8px 24px rgba(0,0,0,.5);
+      transition: transform .3s cubic-bezier(.34,1.56,.64,1);
+      z-index: 999;
+      white-space: nowrap;
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="brand">
+    <div class="brand-icon">📦</div>
+    <div>
+      <h1>Release Manifest Builder</h1>
+      <p>Select repositories per environment to generate a deployment manifest</p>
+    </div>
+  </div>
+  <div class="header-meta">
+    <div class="meta-field">
+      <label>Release Name</label>
+      <input type="text" id="releaseName" placeholder="e.g. v2.4.0" value="v1.0.0" />
+    </div>
+    <div class="meta-field">
+      <label>Release Date</label>
+      <input type="date" id="releaseDate" />
+    </div>
+  </div>
+</header>
+
+<!-- MAIN GRID -->
+<main>
+  <!-- REL ENVIRONMENT -->
+  <div class="env-panel env-rel" id="panel-rel">
+    <div class="env-header">
+      <span class="env-badge">REL</span>
+      <span class="env-title">Release / Staging Environment</span>
+      <span class="env-count" id="count-rel">0 selected</span>
+    </div>
+    <!-- tiers injected by JS -->
+  </div>
+
+  <!-- PRODUCTION ENVIRONMENT -->
+  <div class="env-panel env-prod" id="panel-prod">
+    <div class="env-header">
+      <span class="env-badge">PROD</span>
+      <span class="env-title">Production Environment</span>
+      <span class="env-count" id="count-prod">0 selected</span>
+    </div>
+    <!-- tiers injected by JS -->
+  </div>
+</main>
+
+<!-- FOOTER -->
+<div class="footer-bar">
+  <div class="footer-summary">
+    <span><span class="dot-rel"></span> <span id="summary-rel">REL: 0 repos</span></span>
+    <span><span class="dot-prod"></span> <span id="summary-prod">PROD: 0 repos</span></span>
+  </div>
+  <div class="footer-actions">
+    <button class="btn btn-secondary" onclick="clearAll()">Clear All</button>
+    <button class="btn btn-primary" onclick="downloadManifest()">
+      ⬇ Download Manifest JSON
+    </button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+  const TIERS = [
+    { id: 'application',    label: 'Application',    color: '#8b5cf6' },
+    { id: 'platform',       label: 'Platform',       color: '#f59e0b' },
+    { id: 'data',           label: 'Data',           color: '#06b6d4' },
+    { id: 'microfrontends', label: 'MicroFrontends', color: '#ec4899' },
+  ];
+  const ENVS = ['rel', 'prod'];
+  const REPO_COUNT = 10;
+
+  // Set default date
+  document.getElementById('releaseDate').value = new Date().toISOString().split('T')[0];
+
+  // ── BUILD DOM ──────────────────────────────────────────
+  function buildTierCard(env, tier) {
+    const card = document.createElement('div');
+    card.className = 'tier-card open';
+    card.id = `card-${env}-${tier.id}`;
+
+    const repos = Array.from({ length: REPO_COUNT }, (_, i) => `Repo${i + 1}`);
+
+    card.innerHTML = `
+      <div class="tier-header" onclick="toggleTier(this)">
+        <span class="tier-dot" style="background:${tier.color}"></span>
+        <span class="tier-name">${tier.label}</span>
+        <span class="tier-count-badge" id="badge-${env}-${tier.id}">0 / ${REPO_COUNT}</span>
+        <span class="tier-chevron">▲</span>
+      </div>
+      <div class="tier-body">
+        <div class="tier-actions">
+          <button class="btn-tiny" onclick="selectAll('${env}','${tier.id}')">Select All</button>
+          <button class="btn-tiny" onclick="clearTier('${env}','${tier.id}')">Clear</button>
+        </div>
+        <div class="repo-list" id="list-${env}-${tier.id}">
+          ${repos.map(r => `
+            <label class="repo-item" id="item-${env}-${tier.id}-${r}">
+              <input type="checkbox"
+                data-env="${env}"
+                data-tier="${tier.id}"
+                data-repo="${r}"
+                onchange="onCheck(this)" />
+              <span class="repo-name">${r}</span>
+            </label>
+          `).join('')}
+        </div>
+      </div>
+    `;
+    return card;
+  }
+
+  ENVS.forEach(env => {
+    const panel = document.getElementById(`panel-${env}`);
+    TIERS.forEach(tier => panel.appendChild(buildTierCard(env, tier)));
+  });
+
+  // ── TOGGLE ─────────────────────────────────────────────
+  function toggleTier(header) {
+    header.closest('.tier-card').classList.toggle('open');
+  }
+
+  // ── CHECK LOGIC ────────────────────────────────────────
+  function onCheck(cb) {
+    const item = cb.closest('.repo-item');
+    item.classList.toggle('checked', cb.checked);
+    refreshCounts();
+  }
+
+  function selectAll(env, tierId) {
+    document.querySelectorAll(`[data-env="${env}"][data-tier="${tierId}"]`).forEach(cb => {
+      cb.checked = true;
+      cb.closest('.repo-item').classList.add('checked');
+    });
+    refreshCounts();
+  }
+
+  function clearTier(env, tierId) {
+    document.querySelectorAll(`[data-env="${env}"][data-tier="${tierId}"]`).forEach(cb => {
+      cb.checked = false;
+      cb.closest('.repo-item').classList.remove('checked');
+    });
+    refreshCounts();
+  }
+
+  function clearAll() {
+    document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = false;
+      cb.closest('.repo-item').classList.remove('checked');
+    });
+    refreshCounts();
+  }
+
+  // ── COUNTS ─────────────────────────────────────────────
+  function refreshCounts() {
+    ENVS.forEach(env => {
+      let envTotal = 0;
+      TIERS.forEach(tier => {
+        const checked = [...document.querySelectorAll(`[data-env="${env}"][data-tier="${tier.id}"]`)]
+          .filter(c => c.checked).length;
+        document.getElementById(`badge-${env}-${tier.id}`).textContent = `${checked} / ${REPO_COUNT}`;
+        envTotal += checked;
+      });
+      document.getElementById(`count-${env}`).textContent = `${envTotal} selected`;
+      document.getElementById(`summary-${env}`).textContent =
+        `${env.toUpperCase()}: ${envTotal} repo${envTotal !== 1 ? 's' : ''}`;
+    });
+  }
+
+  // ── MANIFEST DOWNLOAD ──────────────────────────────────
+  function buildManifest() {
+    const manifest = {
+      release: document.getElementById('releaseName').value.trim() || 'unversioned',
+      date: document.getElementById('releaseDate').value,
+      generatedAt: new Date().toISOString(),
+      environments: {}
+    };
+
+    ENVS.forEach(env => {
+      manifest.environments[env] = {};
+      TIERS.forEach(tier => {
+        manifest.environments[env][tier.id] = [...document.querySelectorAll(
+          `[data-env="${env}"][data-tier="${tier.id}"]`
+        )].filter(c => c.checked).map(c => c.dataset.repo);
+      });
+    });
+
+    return manifest;
+  }
+
+  function downloadManifest() {
+    const manifest = buildManifest();
+    const total = ENVS.reduce((sum, env) =>
+      sum + TIERS.reduce((s, t) => s + manifest.environments[env][t.id].length, 0), 0);
+
+    if (total === 0) {
+      showToast('⚠ No repositories selected — nothing to export.');
+      return;
+    }
+
+    const filename = `manifest-${manifest.release}-${manifest.date}.json`;
+    const blob = new Blob([JSON.stringify(manifest, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast(`✓ Downloaded ${filename}`);
+  }
+
+  // ── TOAST ──────────────────────────────────────────────
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2800);
+  }
+
+  refreshCounts();
+</script>
+</body>
+</html>
