@@ -12,11 +12,20 @@
         "Repo1",
         "Repo2"
       ],
-      "data": [],
-      "microfrontends": [],
-      "platform": []
+      "data": [
+        "Repo5",
+        "Repo6"
+      ],
+      "microfrontends": [
+        "Repo7",
+        "Repo8"
+      ],
+      "platform": [
+        "Repo3",
+        "Repo4"
+      ]
     }
   },
-  "generatedAt": "2026-08-17T21:12:26.952Z",
+  "generatedAt": "2026-08-17T21:28:03.194Z",
   "release": "v1.0.0"
 }
